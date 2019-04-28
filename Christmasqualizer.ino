@@ -7,10 +7,6 @@
 * Special thanks for the help from the following:
 * http://nuewire.com/info-archive/msgeq7-by-j-skoba/
 *
-* 4/29/2017 Updated/Forked by Andrew Gelé
-* Threshold is now a pseudo running average instead of just using an arbitrary value. I'm sure this can be improved upon. I'm not used to programming things this difficult. LOL
-* Also made thresholds specific to each pin. Otherwise you just wouldn't see any treble lights in a bassy song.
-*
 */
 
 
@@ -64,7 +60,9 @@ void loop() {
   
   for (int i = 0; i < 7; i++) {
     digitalWrite(strobePin, LOW);
-    delay(3); // Turn this down to make lights spazzier, turn this up to make them more stable
+    
+    delay(15); // Turn this down to make lights spazzier, turn this up to make them more stable
+    
     int value = analogRead(analogPin);
 
     // Overwrite low and high values to keep the threshold 
@@ -75,9 +73,9 @@ void loop() {
       
     if ((highest[i] - lowest[i]) < 24) { // Checks for variance (Lights stay on with no input)
       digitalWrite(pins[i], HIGH); 
-    } else if (value < thresh[i] * 1.00) { // Turn this down if you think lights aren't staying on long enough  
+    } else if (value < thresh[i] * 1.08) { // Turn this down if you think lights aren't staying on long enough  
         digitalWrite(pins[i], LOW);
-      } else if (value > thresh[i] * 1.05) { // Bring this up if you think lights are turning on from sounds that are too soft
+      } else if (value > thresh[i] * 1.09) { // Bring this up if you think lights are turning on from sounds that are too soft
           digitalWrite(pins[i], HIGH); 
         }
       
@@ -88,7 +86,7 @@ void loop() {
   }
 
   // This bit just resets lowest and highest every so often so that variables can all recalibrate.
-  if (repeat%500 == 0) {
+  if (repeat%100 == 0) {
     for (int i = 0; i < 7; i++) {
       lowest[i] = 999;
       highest[i] = 0;
@@ -97,4 +95,3 @@ void loop() {
   }
 
 }
-
