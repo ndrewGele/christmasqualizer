@@ -1,5 +1,4 @@
-Christmasqualizer!
-==================
+# Christmasqualizer!
 
 This code allows you to use a [MSGEQ7](http://www.sparkfun.com/products/10468) to control christmas lights!
 While the wiring is basically up to you, I found [this site](http://nuewire.com/info-archive/msgeq7-by-j-skoba/)
@@ -17,3 +16,16 @@ or the code won't work (it absolutely must have 7 values!)
 Good luck and if you make something with this please send it my way! 
 (@kylehotchkiss on Twitter)
 
+## @ndrewGele's Changeblog
+
+### 4/28/2019
+
+Woah, it's been almost exactly 2 years since I forked this and started tinkering. :O
+I wanted to revisit this project, but I just ended up tweaking some values to get the lights blinking the way I want.
+I thought of a way to use an actual running average/median for the threshold, so I'll open an issue for that and hopefully do it soon.
+
+### 4/29/2017
+
+Forked!
+Threshold is now a pseudo running average instead of just using an arbitrary value. I'm sure this can be improved upon. I'm not used to programming things this difficult. LOL
+Also made thresholds specific to each pin. Otherwise you just wouldn't see any treble lights in a bassy song.
