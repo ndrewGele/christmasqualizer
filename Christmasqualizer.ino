@@ -25,13 +25,71 @@ int powerPin = 7;
 int pins[] = { 2, 3, 4, 5, 8, 9, 10 };
 
 //
-// Threshold Vars
+// Blinking Parameters!
+// All you need to change is here!
 //
-int lowest[7] = {999, 999, 999, 999, 999, 999, 999}; //Starts off high so that it's updated immediately
-int highest[7] = {0, 0, 0, 0, 0, 0, 0}; // Opposite of above
-int thresh[7] = {0, 0, 0, 0, 0, 0, 0};
+double spread = 0.011; // Number of standard deviations above/below threshold required for lights to change
+double multi = 0.985; // Running average will be multiplied by this value to set threshold. Turn down for lights to be on more often. Turn up for lights to be on less often.
+int sampleRate = 5; // How many loops to wait before writing new value to array for running average.
+int wait = 10; // Short delay before looping to prevent lights from being too flickery
+// Running average will be based on a sample of 30 readings from the last [sampleRate] * ([wait] + [compute time]) miliseconds.
 
-int repeat = 0; // Used for recalibration at the bottom
+//
+// Initialize matrix for running averages
+//
+double thresh = 0.00; // Just initializing
+int sample[7][30] = {
+  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
+};
+double stDevs[7] = {0,0,0,0,0,0,0};
+
+
+// Init some other stuff
+int loopCount = 1; // +1 each time the code loops
+int sampleWrite[7] = {0,0,0,0,0,0,0}; // Keeps track of sample array index
+
+
+//
+// Define some functions we'll use
+//
+
+// Mean function
+double mean(int arr[], int size) {
+
+   int i;
+   double avg;
+   double sum = 0;
+
+   for (i = 0; i < size; i++) {
+      sum += arr[i];
+   }
+
+   avg = sum / size;
+
+   return avg;
+}
+
+// Standard Deviation Function
+double sd(int arr[], int size, double mean) {
+  
+  double stDev;
+  double sqDevSum = 0.0;
+
+  for(int i = 0; i < size; i++) {
+    sqDevSum += pow((mean - float(arr[i])), 2);
+  }
+
+  stDev = sqrt(sqDevSum/float(size));
+
+  return stDev;
+}
+  
 
 //
 // Main function stuff
@@ -57,41 +115,54 @@ void setup() {
 void loop() {
   digitalWrite(resetPin, HIGH);
   digitalWrite(resetPin, LOW);
-  
+
   for (int i = 0; i < 7; i++) {
     digitalWrite(strobePin, LOW);
     
-    delay(15); // Turn this down to make lights spazzier, turn this up to make them more stable
-    
     int value = analogRead(analogPin);
 
-    // Overwrite low and high values to keep the threshold 
-    if (value <= lowest[i]) {lowest[i] = value;}
-    if (value >= highest[i]) {highest[i] = value;}
-                   
-    thresh[i] = ((lowest[i] + highest[i])/2) * 1.00; // Tweak this if you think the threshold is just too low or too high overall
-      
-    if ((highest[i] - lowest[i]) < 24) { // Checks for variance (Lights stay on with no input)
+    // Set threshold using the function defined above
+    thresh = mean(sample[i], 30) * multi; // Turn this down if you think lights aren't staying on long enough  
+
+    // Turn lights on or off based on thresh
+    if (thresh < 69) { // If average is really low, there probably isn't music playing, so just turn the lights on!
       digitalWrite(pins[i], HIGH); 
-    } else if (value < thresh[i] * 1.08) { // Turn this down if you think lights aren't staying on long enough  
+    } else if (value < thresh - (stDevs[i] * spread)) { 
         digitalWrite(pins[i], LOW);
-      } else if (value > thresh[i] * 1.09) { // Bring this up if you think lights are turning on from sounds that are too soft
+      } else if (value > thresh + (stDevs[i] * spread)) {
           digitalWrite(pins[i], HIGH); 
         }
       
     digitalWrite(strobePin, HIGH);
 
-    repeat++; // See below.
-  
-  }
+    // Check for occasional loop of code to write value to our running sample
+    if (loopCount == sampleRate) {
 
-  // This bit just resets lowest and highest every so often so that variables can all recalibrate.
-  if (repeat%100 == 0) {
-    for (int i = 0; i < 7; i++) {
-      lowest[i] = 999;
-      highest[i] = 0;
+      // Compute standard deviation and write to array
+      stDevs[i] = sd(sampleWrite[i], 30, mean(sample[i], 30));
+      
+      // Write value to array and increase index
+      sample[i][sampleWrite[i]] = value;
+      sampleWrite[i]++;
+      
+      // If end of array, loop back to beginning
+      if (sampleWrite[i] == 29) {
+        sampleWrite[i] = 0;
+      }
+
+      // Reset loop counter
+      loopCount = 1;
+    
+    } else {
+
+      // Increase loop counter
+      loopCount++;
+    
     }
-    repeat = 0;
-  }
+  
+  } // end of primary loop
+
+  // Short delay before next loop so lights aren't too spazzy
+  delay(wait);
 
 }
